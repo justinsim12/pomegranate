@@ -708,4 +708,32 @@ class _BaseHMM(Distribution):
 		self.from_summaries()
 		self._reset_cache()
 
+	def viterbi(self, X):
 
+		"""Performs the viterbi algorithm on a sequence of observations and returns the most likely path"""
+		
+		emissions = self._emission_matrix(X)
+		transitions = self.edges.permute(1,0)
+		self.starts[self.starts==NEGINF] = 0
+
+		back_pointers = torch.zeros(X.size()).int()
+		prior_state_probs = (emissions[0])+self.starts
+		viterbi_score = prior_state_probs
+
+		for i in range(1,len(X)):
+
+			max_transitions , back_pointers[i] = (torch.add(prior_state_probs,transitions)).max(dim=1)
+			prior_state_probs = max_transitions+emissions[i]
+			viterbi_score = viterbi_score+prior_state_probs        
+
+		rev_path = list()
+		most_likely_state = viterbi_score.argmax().item() #final most recent viterbi sum will have the cumulative
+		rev_path.append(most_likely_state)
+
+		for i in reversed(range(1,len(X))):
+			most_likely_state=back_pointers[i].squeeze()[most_likely_state].item()
+			rev_path.append(most_likely_state)
+		
+		path =  list(reversed(rev_path))
+		
+		return path
